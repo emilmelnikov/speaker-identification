@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 
-"""Compute Mel frequency cepstral coefficients (MFCC)."""
+"""Extract voice features from audio files."""
 
 
 import argparse
+
 
 import numpy as np
 import scipy.fftpack
@@ -84,7 +85,7 @@ def getdeltas(values, size):
 #pylint: disable=too-many-arguments
 def fromfile(name, start=0, end=None, framesize=0.025, stepsize=0.010, warpsize=3,
              deltasize=2, nfilters=40, lofreq=0, hifreq=None, nmfccs=20):
-    """Get MFCC, delta and delta-delta coefficients from the file."""
+    """Get warped MFCC, delta and delta-delta coefficients from the file."""
 
     # Get the data.
     rate, signal = scipy.io.wavfile.read(name)
@@ -121,7 +122,7 @@ def fromfile(name, start=0, end=None, framesize=0.025, stepsize=0.010, warpsize=
         frame = signal[i:i+nframesamples]
         _, psd = scipy.signal.periodogram(frame, fs=rate, window=window)
         mfccs[i] = scipy.fftpack.dct(np.log(bank @ psd), n=nmfccs)
-
+import ipdb; ipdb.set_trace()
     # Compute warped MFCCs, delta and delta-delta coefficients.
     warps = getwarps(mfccs, nwarpsamples)
     deltas = getdeltas(warps, deltasize)
@@ -130,11 +131,11 @@ def fromfile(name, start=0, end=None, framesize=0.025, stepsize=0.010, warpsize=
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument('file')
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('file', help='path to the file')
     args = ap.parse_args()
     features = fromfile(args.file)
-    print(features)
+    print(features.shape)
 
 
 if __name__ == '__main__':
