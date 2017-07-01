@@ -24,6 +24,12 @@ def mel2hz(mel):
     return 700 * np.expm1(np.asarray(mel) / 1127)
 
 
+def framecount(nsamples, nframesamples, nstepsamples):
+    """Compute the number of frames in a sample window."""
+    # Subtract frame size from the total duration and round up.
+    return (nsamples-nframesamples-1) // nstepsamples + 1
+
+
 def filterbank(nfilters, nsamples, lofreq, hifreq, rate):
     """Create Mel filterbank."""
     lomel = hz2mel(lofreq)
@@ -42,30 +48,30 @@ def filterbank(nfilters, nsamples, lofreq, hifreq, rate):
 def clamp2(i, n, k):
     """For any i in range(0, n), k in range(0, n//2):
     * leave the first k values as range(0, k)
-    * change the middle n - 2*k values to k;
-    * change the last k values to range(k + 1, 2*k + 1)
+    * change the middle n - 2*k + 1 values to k;
+    * change the last k-1 values to range(k + 1, 2*k)
 
     >>> [clamp2(i, 10, 3) for i in range(10)]
-    [0, 1, 2, 3, 3, 3, 3, 4, 5, 6]
+    [0, 1, 2, 3, 3, 3, 3, 3, 4, 5]
     """
-    return min(i, k) + max(-n+i+k+1, 0)
+    return min(i, k) + max(-n+i+k, 0)
 
 
-def getwarps(mfccs, nwarpsamples):
+def getwarps(mfccs, nwarpframes):
     """Compute warped MFCC coefficients."""
 
     dist = scipy.stats.norm
-    probpoints = (np.arange(nwarpsamples) + 1/2) / nwarpsamples
+    probpoints = (np.arange(nwarpframes) + 1/2) / nwarpframes
     lut = dist.pdf(dist.ppf(probpoints))
 
     nmfccs = mfccs.shape[0]
     warps = np.empty_like(mfccs)
 
     for i in range(nmfccs):
-        windowfrom = np.clip(i - nwarpsamples//2, 0, nmfccs - nwarpsamples)
-        window = mfccs[windowfrom:windowfrom+nwarpsamples]
+        windowfrom = np.clip(i - nwarpframes//2, 0, nmfccs - nwarpframes)
+        window = mfccs[windowfrom:windowfrom+nwarpframes]
         ranks = np.argsort(window, axis=0)
-        irank = clamp2(i, nmfccs, nwarpsamples//2)
+        irank = clamp2(i, nmfccs, nwarpframes//2)
         warps[i] = lut[ranks[irank]]
 
     return warps
@@ -104,17 +110,18 @@ def fromfile(name, start=0, end=None, framesize=0.025, stepsize=0.010, warpsize=
     nstepsamples = round(stepsize * rate)
     nwarpsamples = round(warpsize * rate)
 
-    # Get ROI from the signal.
-    signal = signal[startsample:endsample]
-    if signal.ndim == 2:
-        signal = np.mean(signal, axis=1)
+    # Get frame counts for the signal ROI and the warp window.
+    nframes = framecount(nsamples, nframesamples, nstepsamples)
+    nwarpframes = framecount(nwarpsamples, nframesamples, nstepsamples)
 
     # Obtain filters.
     window = scipy.signal.hamming(nframesamples)
     bank = filterbank(nfilters, nframesamples//2 + 1, lofreq, hifreq, rate)
 
-    # Subtract frame size from the total duration and round up.
-    nframes = (nsamples-nframesamples-1) // nstepsamples + 1
+    # Get ROI from the signal.
+    signal = signal[startsample:endsample]
+    if signal.ndim == 2:
+        signal = np.mean(signal, axis=1)
 
     # Compute MFCCs.
     mfccs = np.zeros([nframes, nmfccs])
@@ -122,9 +129,9 @@ def fromfile(name, start=0, end=None, framesize=0.025, stepsize=0.010, warpsize=
         frame = signal[i:i+nframesamples]
         _, psd = scipy.signal.periodogram(frame, fs=rate, window=window)
         mfccs[i] = scipy.fftpack.dct(np.log(bank @ psd), n=nmfccs)
-import ipdb; ipdb.set_trace()
+
     # Compute warped MFCCs, delta and delta-delta coefficients.
-    warps = getwarps(mfccs, nwarpsamples)
+    warps = getwarps(mfccs, nwarpframes)
     deltas = getdeltas(warps, deltasize)
     deltas2 = getdeltas(deltas, deltasize)
     return np.hstack([warps, deltas, deltas2])
