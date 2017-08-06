@@ -3,7 +3,7 @@
 ## Download data archives from voxforge
 
 ```sh
-./voxforge-dl.sh
+scripts/voxforge-dl.sh
 ```
 
 It downloads files to `data/voxforge` directory, skipping already downloaded files.

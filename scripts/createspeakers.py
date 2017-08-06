@@ -8,7 +8,7 @@ import argparse
 import os
 import tarfile
 
-import numpy as np
+import numpy
 import scipy.io.wavfile
 
 
@@ -42,7 +42,7 @@ def extractwav(archivename):
                 if gender is not None:
                     dataerror('{}: multiple READMEs: last with path {}',
                               archivename, filename)
-                    return 0, np.empty(), ''
+                    return 0, numpy.empty(), ''
                 with tar.extractfile(member) as f:
                     gender = getgender(f)
 
@@ -56,24 +56,24 @@ def extractwav(archivename):
                     if rate != joinedrate:
                         dataerror('{}: unequal signal rates: got {}, expected {}',
                                   fullname, rate, joinedrate)
-                        return 0, np.empty(), ''
+                        return 0, numpy.empty(), ''
 
                     if sigs and sig.ndim != sigs[-1].ndim:
                         dataerror('{}: unequal channel count: got {}, expected {}',
                                   fullname, sig.ndim, sigs[-1].ndim)
-                        return 0, np.empty(), ''
+                        return 0, numpy.empty(), ''
 
                     sigs.append(sig)
 
     if gender not in ['male', 'female']:
         dataerror('{}: unknown or undefined gender: {}', archivename, repr(gender))
-        return 0, np.empty(0), ''
+        return 0, numpy.empty(0), ''
 
     if not sigs:
         dataerror('{}: no WAV files', archivename)
-        return 0, np.empty(0), ''
+        return 0, numpy.empty(0), ''
 
-    return joinedrate, np.concatenate(sigs), gender
+    return joinedrate, numpy.concatenate(sigs), gender
 
 
 def main():
