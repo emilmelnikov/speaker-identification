@@ -96,7 +96,7 @@ def lstd(x, n=6, k=3, alpha=0.95, offset=5, hangover_frames=8,
             nonspeech_frames += 1
             mask[i] = True
         # Noise estimation update.
-        if not x[i]:
+        if mask[i]:
             noise_k = numpy.sum(x[i-k:i+k+1], axis=0) / (2*k+1)
             noise = alpha*noise + (1-alpha)*noise_k
 
